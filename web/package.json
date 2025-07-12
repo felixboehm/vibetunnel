@@ -4,12 +4,14 @@
   "description": "Web frontend for terminal multiplexer",
   "main": "dist/server.js",
   "bin": {
-    "vibetunnel": "./dist/vibetunnel-cli"
+    "vibetunnel": "./dist/vibetunnel-cli",
+    "vibetunnel-linux": "./dist/vibetunnel-linux"
   },
   "scripts": {
     "clean": "node scripts/clean.js",
     "dev": "node scripts/dev.js",
     "dev:server": "tsx watch src/cli.ts --no-auth",
+    "dev:linux": "tsx watch src/linux-server.ts --no-auth",
     "dev:client": "node scripts/dev.js --client-only",
     "build": "node scripts/build.js",
     "build:ci": "node scripts/build-ci.js",

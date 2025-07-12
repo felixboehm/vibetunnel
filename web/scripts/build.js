@@ -108,6 +108,48 @@ async function build() {
     process.exit(1);
   }
 
+  // Bundle Linux Server
+  console.log('Bundling Linux Server...');
+  try {
+    await esbuild.build({
+      entryPoints: ['src/linux-server.ts'],
+      bundle: true,
+      platform: 'node',
+      target: 'node18',
+      format: 'cjs',
+      outfile: 'dist/vibetunnel-linux',
+      external: [
+        'node-pty',
+        'authenticate-pam',
+      ],
+      minify: true,
+      sourcemap: false,
+      loader: {
+        '.ts': 'ts',
+        '.js': 'js',
+      },
+    });
+    
+    // Read the file and ensure it has exactly one shebang
+    let linuxContent = fs.readFileSync('dist/vibetunnel-linux', 'utf8');
+    
+    // Remove any existing shebangs
+    linuxContent = linuxContent.replace(/^#!.*\n/gm, '');
+    
+    // Add a single shebang at the beginning
+    linuxContent = '#!/usr/bin/env node\n' + linuxContent;
+    
+    // Write the fixed content back
+    fs.writeFileSync('dist/vibetunnel-linux', linuxContent);
+    
+    // Make the Linux server executable
+    fs.chmodSync('dist/vibetunnel-linux', '755');
+    console.log('Linux Server bundle created successfully');
+  } catch (error) {
+    console.error('Linux Server bundling failed:', error);
+    process.exit(1);
+  }
+
 
   // Build native executable
   console.log('Building native executable...');
