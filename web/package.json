@@ -11,7 +11,7 @@
     "clean": "node scripts/clean.js",
     "dev": "node scripts/dev.js",
     "dev:server": "tsx watch src/cli.ts --no-auth",
-    "dev:linux": "tsx watch src/linux-server.ts --no-auth",
+    "dev:linux": "tsx watch src/linux-server.ts",
     "dev:client": "node scripts/dev.js --client-only",
     "build": "node scripts/build.js",
     "build:ci": "node scripts/build-ci.js",

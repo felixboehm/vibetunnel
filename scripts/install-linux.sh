@@ -73,7 +73,7 @@ update_system() {
 
 install_dependencies() {
     log_info "Installing dependencies..."
-    apt install -y curl build-essential unzip git ufw
+    apt install -y curl build-essential unzip git ufw libpam0g-dev python3-dev
     log_success "Dependencies installed"
 }
 
@@ -125,6 +125,11 @@ create_user() {
         useradd --system --create-home --shell /bin/bash "$VIBETUNNEL_USER"
         log_success "User $VIBETUNNEL_USER created"
     fi
+    
+    # Add to shadow group for PAM authentication
+    log_info "Adding $VIBETUNNEL_USER to shadow group for multi-user authentication..."
+    usermod -a -G shadow "$VIBETUNNEL_USER"
+    log_success "User $VIBETUNNEL_USER added to shadow group"
 }
 
 setup_directory() {
@@ -165,8 +170,13 @@ EOF
 install_binary() {
     log_info "Installing VibeTunnel binary..."
     
-    # Copy Linux server binary to system binary path
-    cp "$VIBETUNNEL_DIR/vibetunnel/web/dist/vibetunnel-linux" /usr/local/bin/vibetunnel
+    # Copy Linux CLI binary (includes both server and client functionality)
+    if [[ -f "$VIBETUNNEL_DIR/vibetunnel/web/dist/vibetunnel-linux-cli" ]]; then
+        cp "$VIBETUNNEL_DIR/vibetunnel/web/dist/vibetunnel-linux-cli" /usr/local/bin/vibetunnel
+    else
+        # Fallback to server-only binary if CLI version not available
+        cp "$VIBETUNNEL_DIR/vibetunnel/web/dist/vibetunnel-linux" /usr/local/bin/vibetunnel
+    fi
     chmod +x /usr/local/bin/vibetunnel
     
     # Verify installation
@@ -174,6 +184,60 @@ install_binary() {
         log_success "VibeTunnel binary installed successfully"
     else
         log_error "Binary installation failed"
+        exit 1
+    fi
+}
+
+install_vt_command() {
+    log_info "Installing VT command..."
+    
+    # Create VT wrapper script
+    cat > /usr/local/bin/vt << 'EOF'
+#!/bin/bash
+# VibeTunnel CLI wrapper for Linux
+
+# Path to the VibeTunnel Linux CLI binary (includes fwd functionality)
+VIBETUNNEL_BIN="/usr/local/bin/vibetunnel"
+
+# Check if binary exists
+if [ ! -f "$VIBETUNNEL_BIN" ]; then
+    echo "Error: VibeTunnel binary not found at $VIBETUNNEL_BIN" >&2
+    exit 1
+fi
+
+# Check if we're already inside a VibeTunnel session
+if [ -n "$VIBETUNNEL_SESSION_ID" ]; then
+    # Special case: handle 'vt title' command inside a session
+    if [[ "$1" == "title" ]]; then
+        if [[ $# -lt 2 ]]; then
+            echo "Error: 'vt title' requires a title argument" >&2
+            echo "Usage: vt title <new title>" >&2
+            exit 1
+        fi
+        shift # Remove 'title' from arguments
+        TITLE="$*" # Get all remaining arguments as the title
+        
+        # Use the vibetunnel binary's --update-title flag
+        exec "$VIBETUNNEL_BIN" fwd --update-title "$TITLE" --session-id "$VIBETUNNEL_SESSION_ID"
+        exit 1
+    fi
+    
+    echo "Error: Already inside a VibeTunnel session (ID: $VIBETUNNEL_SESSION_ID). Recursive VibeTunnel sessions are not supported." >&2
+    echo "If you need to run commands, use them directly without the 'vt' prefix." >&2
+    exit 1
+fi
+
+# Pass all arguments to the vibetunnel binary's fwd command
+exec "$VIBETUNNEL_BIN" fwd "$@"
+EOF
+    
+    chmod +x /usr/local/bin/vt
+    
+    # Verify installation
+    if [[ -x /usr/local/bin/vt ]]; then
+        log_success "VT command installed successfully"
+    else
+        log_error "VT command installation failed"
         exit 1
     fi
 }
@@ -191,7 +255,7 @@ Type=simple
 User=$VIBETUNNEL_USER
 Group=$VIBETUNNEL_USER
 WorkingDirectory=$VIBETUNNEL_DIR/vibetunnel/web
-ExecStart=/usr/local/bin/vibetunnel
+ExecStart=/usr/local/bin/vibetunnel --enable-ssh-keys
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -269,6 +333,7 @@ show_status() {
     echo "   sudo systemctl stop vibetunnel       # Stop service"
     echo "   sudo journalctl -u vibetunnel -f     # View live logs"
     echo "   vibetunnel version                   # Check version"
+    echo "   vt <command>                         # Run commands in VibeTunnel"
     echo
     echo "🔧 Configuration:"
     echo "   Service file: /etc/systemd/system/vibetunnel.service"
@@ -295,6 +360,7 @@ main() {
     setup_directory
     clone_and_build
     install_binary
+    install_vt_command
     create_systemd_service
     configure_firewall
     start_service
