@@ -16,6 +16,7 @@ export class AuthLogin extends LitElement {
   @state() private error = '';
   @state() private success = '';
   @state() private currentUserId = '';
+  @state() private loginUserId = '';
   @state() private loginPassword = '';
   @state() private userAvatar = '';
   @state() private authConfig = {
@@ -61,6 +62,8 @@ export class AuthLogin extends LitElement {
       }
 
       this.currentUserId = await this.authClient.getCurrentSystemUser();
+      // Pre-fill login username with current user, but allow editing
+      this.loginUserId = this.currentUserId;
       console.log('👤 Current user:', this.currentUserId);
 
       // Load user avatar only if auth is enabled
@@ -97,7 +100,7 @@ export class AuthLogin extends LitElement {
 
     try {
       const result = await this.authClient.authenticateWithPassword(
-        this.currentUserId,
+        this.loginUserId || this.currentUserId,
         this.loginPassword
       );
       console.log('🎫 Password auth result:', result);
@@ -262,10 +265,24 @@ export class AuthLogin extends LitElement {
                         }
                       </div>
                       <p class="text-primary text-base sm:text-lg font-medium">
-                        Welcome back, ${this.currentUserId || '...'}
+                        Welcome to VibeTunnel
                       </p>
                     </div>
                     <form @submit=${this.handlePasswordLogin} class="space-y-3">
+                      <div>
+                        <input
+                          type="text"
+                          class="input-field"
+                          data-testid="username-input"
+                          placeholder="Username"
+                          .value=${this.loginUserId}
+                          @input=${(e: Event) => {
+                            this.loginUserId = (e.target as HTMLInputElement).value;
+                          }}
+                          ?disabled=${this.loading}
+                          required
+                        />
+                      </div>
                       <div>
                         <input
                           type="password"
@@ -284,7 +301,7 @@ export class AuthLogin extends LitElement {
                         type="submit"
                         class="btn-primary w-full py-3 sm:py-4 mt-2"
                         data-testid="password-submit"
-                        ?disabled=${this.loading || !this.loginPassword}
+                        ?disabled=${this.loading || !this.loginPassword || !this.loginUserId}
                       >
                         ${this.loading ? 'Authenticating...' : 'Login with Password'}
                       </button>

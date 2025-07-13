@@ -108,7 +108,7 @@ async function build() {
     process.exit(1);
   }
 
-  // Bundle Linux Server
+  // Bundle Linux Server (server-only)
   console.log('Bundling Linux Server...');
   try {
     await esbuild.build({
@@ -147,6 +147,48 @@ async function build() {
     console.log('Linux Server bundle created successfully');
   } catch (error) {
     console.error('Linux Server bundling failed:', error);
+    process.exit(1);
+  }
+
+  // Bundle Linux CLI (server + fwd functionality)
+  console.log('Bundling Linux CLI...');
+  try {
+    await esbuild.build({
+      entryPoints: ['src/cli.ts'],
+      bundle: true,
+      platform: 'node',
+      target: 'node18',
+      format: 'cjs',
+      outfile: 'dist/vibetunnel-linux-cli',
+      external: [
+        'node-pty',
+        'authenticate-pam',
+      ],
+      minify: true,
+      sourcemap: false,
+      loader: {
+        '.ts': 'ts',
+        '.js': 'js',
+      },
+    });
+    
+    // Read the file and ensure it has exactly one shebang
+    let linuxCliContent = fs.readFileSync('dist/vibetunnel-linux-cli', 'utf8');
+    
+    // Remove any existing shebangs
+    linuxCliContent = linuxCliContent.replace(/^#!.*\n/gm, '');
+    
+    // Add a single shebang at the beginning
+    linuxCliContent = '#!/usr/bin/env node\n' + linuxCliContent;
+    
+    // Write the fixed content back
+    fs.writeFileSync('dist/vibetunnel-linux-cli', linuxCliContent);
+    
+    // Make the Linux CLI executable
+    fs.chmodSync('dist/vibetunnel-linux-cli', '755');
+    console.log('Linux CLI bundle created successfully');
+  } catch (error) {
+    console.error('Linux CLI bundling failed:', error);
     process.exit(1);
   }
 
