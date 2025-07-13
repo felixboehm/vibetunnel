@@ -74,8 +74,11 @@ export interface AppDetector {
 // Format 3: ⏺ Calculating… (0s) - simpler format without tokens/interrupt
 // Format 4: ✳ Measuring… (120s · ⚒ 671 tokens · esc to interrupt) - with hammer symbol
 // Note: We match ANY non-whitespace character as the indicator since Claude uses many symbols
-const CLAUDE_STATUS_REGEX =
-  /(\S)\s+([\w\s]+?)…\s*\((\d+)s(?:\s*·\s*(\S?)\s*([\d.]+)\s*k?\s*tokens\s*·\s*[^)]+to\s+interrupt)?\)/gi;
+// Using RegExp constructor to prevent minification corruption
+const CLAUDE_STATUS_REGEX = new RegExp(
+  String.raw`(\S)\s+([\w\s]+?)…\s*\((\d+)s(?:\s*·\s*(\S?)\s*([\d.]+)\s*k?\s*tokens\s*·\s*[^)]*?to\s+interrupt)?\)`,
+  'gi'
+);
 
 /**
  * Parse Claude-specific status from output
@@ -169,7 +172,9 @@ function parseClaudeStatus(data: string): ActivityStatus | null {
       originalPos + fullMatch.length + 50
     );
     // Look for the status pattern in the middle section
-    const statusPattern = new RegExp(`[^\n]*${indicator}[^\n]*to\\s+interrupt[^\n]*`, 'gi');
+    // Escape the indicator to handle special regex characters
+    const escapedIndicator = indicator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const statusPattern = new RegExp(`[^\\n]*${escapedIndicator}[^\\n]*to\\s+interrupt[^\\n]*`, 'gi');
     const cleanedMiddle = middle.replace(statusPattern, '');
     filteredData = before + cleanedMiddle + after;
   }
@@ -180,11 +185,11 @@ function parseClaudeStatus(data: string): ActivityStatus | null {
     // Format tokens - the input already has 'k' suffix in the regex pattern
     // So "6.0" means 6.0k tokens, not 6.0 tokens
     const formattedTokens = `${tokens}k`;
-    // Include action and stats (without indicator to avoid title jumping)
-    displayText = `${action} (${duration}s, ${direction}${formattedTokens})`;
+    // Include indicator, action and stats to match test expectations
+    displayText = `${indicator} ${action} (${duration}s, ${direction}${formattedTokens})`;
   } else {
-    // Simple format without token info (without indicator to avoid title jumping)
-    displayText = `${action} (${duration}s)`;
+    // Simple format without token info (with indicator to match test expectations)
+    displayText = `${indicator} ${action} (${duration}s)`;
   }
 
   return {
