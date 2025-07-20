@@ -374,6 +374,15 @@ Debug logs are written to `~/.vibetunnel/log.txt`.
 - [Build System](docs/build-system.md) - Build process details
 - [Push Notifications](docs/push-notification.md) - How web push notifications work
 
+### Linux Deployment
+- [Project Summary](docs/linux-deployment/project-summary.md) - Complete Linux deployment project overview
+- [Current Status](docs/linux-deployment/current-status.md) - Operational status and configuration
+- [TODO List](docs/linux-deployment/todo-list.md) - Issues and future enhancements
+- [Issue Investigation](docs/linux-deployment/issue-investigation.md) - Root cause analysis of problems
+- [Critical Fixes](docs/linux-deployment/critical-fixes.md) - Solutions for critical issues
+- [Quick Fixes](docs/linux-deployment/quick-fixes.md) - Immediate solutions for common problems
+- [Regex Fix](docs/linux-deployment/regex-fix.md) - Activity detector regex issue resolution
+
 ## macOS Permissions
 
 macOS is finicky when it comes to permissions. The system will only remember the first path from where an app requests permissions. If subsequently the app starts somewhere else, it will silently fail. Fix: Delete the entry and restart settings, restart app and next time the permission is requested, there should be an entry in Settings again.
